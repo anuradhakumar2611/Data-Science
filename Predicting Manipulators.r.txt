@@ -1,0 +1,56 @@
+cart_model <- read_excel("C:/Users/raagh/Desktop/Anu MIS/Fall 2020/Data Mining/Assignments/IMB579-XLS-ENG.xlsx",sheet="Sample for Model Development")
+head(cart_model)
+
+#renaming the excel columns to use in R
+names(cart_model)[names(cart_model)=="Company ID"] <- "Company_ID"
+names(cart_model)[names(cart_model)=="C-MANIPULATOR"] <- "C_Manipulator"
+
+#change to facor
+cart_model$Manipulator_f <- as.factor(cart_model$Manipulator)
+cart_model$Manipulator_f
+
+#remove the original Manipulator value
+cart_model <- cart_model[-10]
+
+#rename the target to Manipulator
+names(cart_model)[names(cart_model)=="Manipulator_f"] <- "Manipulator"
+summary(cart_model$Manipulator)
+
+#balance sample data
+balanced_sample <- ovun.sample(Manipulator ~ DSRI+GMI+AQI+SGI+DEPI+SGAI+ACCR+LEVI, data = cart_model,method="over")$data
+summary(balanced_sample$Manipulator)
+
+#CART cart_model
+set.seed(123)
+indx_cart  <- sample(2,nrow(balanced_sample), replace=T, prob=c(0.7,0.3))
+
+train_cart <- balanced_sample[indx_cart == 1, ]
+test_cart <- balanced_sample[indx_cart == 2, ]
+
+tree_cart_model <- rpart(Manipulator ~ DSRI+GMI+AQI+SGI+DEPI+SGAI+ACCR+LEVI, data = train_cart,parms=list(split="Gini"))
+
+#gives the plot
+rpart.plot(tree_cart_model)
+print(tree_cart_model)
+
+#Check the error and efficiency of the training and test cart_models.
+tree_Manip_test <- predict(tree_cart_model, test_cart, type = "class")
+mean(test_cart$Manipulator == tree_Manip_test) #Test Accuracy
+mean(test_cart$Manipulator != tree_Manip_test) #Test error
+
+tree_Manip_train <- predict(tree_cart_model, train_cart, type = "class")
+mean(train_cart$Manipulator != tree_Manip_train) #Training error
+mean(train_cart$Manipulator == tree_Manip_train) #Training accuracy.
+
+
+pred_cart <- predict(tree_cart_model,test_cart,type="prob")
+Prediction_cart <- prediction(pred_cart[,2],test_cart$Manipulator)
+perf_Cart <- performance(Prediction_cart,"tpr","fpr")
+plot(perf_Cart,main="ROC curve for CART")
+
+#find the auc of the curve.
+#auc
+auc_cart <- performance(Prediction_cart,"auc")
+auc_cart <- unlist(slot(auc_cart,"y.values"))
+auc_cart
+confusionMatrix(prediction_cart,reference = actual_Manip)
